@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>口径不一致事件加工系统</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-dot"></span>
+    <div>
+      <h1>口径不一致事件加工系统</h1>
+      <p class="subtitle">不同观测口径来源的可比样本加工 · 共同范围 / 分层报告 · 断点恢复</p>
+    </div>
+  </div>
+  <div class="topbar-meta" id="active-meta">加载中…</div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-tab="ingest">① 摄入与加工</button>
+  <button class="tab" data-tab="mapping">② 口径映射</button>
+  <button class="tab" data-tab="incompat">③ 不相容与排除留痕</button>
+  <button class="tab" data-tab="report">④ 报告与跨版比较</button>
+</nav>
+
+<main>
+  <!-- ① 摄入与加工 -->
+  <section class="panel active" id="panel-ingest">
+    <div class="grid-2">
+      <div class="card">
+        <h2>提交虚构事件加工</h2>
+        <p class="hint">样例数据为真实生成的原始事件（含失败、重试、静默单元、坏记录），不做零填充。</p>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-run-initial">加工首版样例</button>
+          <button class="btn" id="btn-run-supplement">补交 gamma U3 成功事件</button>
+          <button class="btn" id="btn-run-full">gamma 补字段（full 口径）</button>
+        </div>
+        <label class="checkbox"><input type="checkbox" id="arm-crash"> 下一作业在 scope 阶段前注入中断（演示断点恢复）</label>
+        <div class="btn-row">
+          <button class="btn warn" id="btn-resume-all">恢复所有中断作业</button>
+        </div>
+        <h3>自定义 JSON 摄入</h3>
+        <textarea id="ingest-json" rows="8" placeholder='{"source-x": [{"event_id":"...", ...}]}'></textarea>
+        <div class="btn-row">
+          <input type="text" id="ingest-note" placeholder="说明（可选）" class="grow">
+          <button class="btn" id="btn-ingest-custom">摄入并加工</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>作业与版本</h2>
+        <div class="table-wrap">
+          <table id="jobs-table">
+            <thead><tr><th>作业</th><th>输入版</th><th>映射版</th><th>状态</th><th>阶段</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="job-checkpoints"></div>
+      </div>
+    </div>
+    <div class="card" id="ingest-result"></div>
+  </section>
+
+  <!-- ② 口径映射 -->
+  <section class="panel" id="panel-mapping">
+    <div class="card">
+      <h2>当前激活口径映射 <span class="tag" id="mapping-version-tag"></span></h2>
+      <p class="hint">修改后整体校验，通过才生成新版本并激活；历史版本只追加、不改写，旧报告可复现。</p>
+      <div id="mapping-summary" class="sig-row"></div>
+      <textarea id="mapping-editor" rows="18" spellcheck="false"></textarea>
+      <div class="btn-row">
+        <input type="text" id="mapping-note" placeholder="变更说明，如：gamma 补报 outcome 升级 full" class="grow">
+        <button class="btn primary" id="btn-save-mapping">校验并保存为新版本</button>
+        <button class="btn" id="btn-reload-mapping">重新载入激活版</button>
+      </div>
+      <div id="mapping-message"></div>
+    </div>
+    <div class="card">
+      <h2>映射版本历史</h2>
+      <div class="table-wrap">
+        <table id="mapping-versions">
+          <thead><tr><th>版本</th><th>时间</th><th>说明</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ③ 不相容 -->
+  <section class="panel" id="panel-incompat">
+    <div class="card">
+      <h2>选择作业查看不相容原因与排除留痕</h2>
+      <select id="incompat-job-select" class="grow"></select>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h2>来源相容性裁决</h2>
+        <div id="verdicts"></div>
+      </div>
+      <div class="card">
+        <h2>被保留记录（拒绝/冲突/未映射）</h2>
+        <div id="retained"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>被排除单元与原因</h2>
+      <div id="exclusions"></div>
+    </div>
+  </section>
+
+  <!-- ④ 报告 -->
+  <section class="panel" id="panel-report">
+    <div class="card">
+      <h2>选择报告作业</h2>
+      <div class="btn-row">
+        <select id="report-job-select" class="grow"></select>
+        <select id="report-strategy">
+          <option value="narrow_report">收窄到共同可观察范围（narrow）</option>
+          <option value="stratified_report">按口径签名分层（stratified）</option>
+        </select>
+      </div>
+      <div id="report-meta"></div>
+      <div id="report-limitations" class="limitations"></div>
+    </div>
+    <div class="card viz-root">
+      <h2>成功率对比（同口径内排序，分母不可观察者不入图）</h2>
+      <div id="chart"></div>
+      <p class="hint" id="chart-note"></p>
+    </div>
+    <div class="card">
+      <h2>明细表（含不可计算的成功-only 来源）</h2>
+      <div class="table-wrap">
+        <table id="report-table">
+          <thead><tr><th>单元</th><th>口径层</th><th>来源</th><th>成功</th><th>尝试</th><th>成功量</th><th>成功率</th><th>备注</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>跨输入版比较（新可比版）</h2>
+      <div class="btn-row">
+        <select id="compare-a" class="grow"></select>
+        <span>vs</span>
+        <select id="compare-b" class="grow"></select>
+        <button class="btn" id="btn-compare">比较</button>
+      </div>
+      <div id="compare-result"></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/app.js"></script>
+</body>
+</html>
